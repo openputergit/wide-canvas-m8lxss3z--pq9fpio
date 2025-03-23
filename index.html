@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clay Design Editor</title>
+    <script src="https://unpkg.com/konva@8.3.2/konva.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --clay-shadow: 0.5rem 0.5rem 1rem rgba(0, 0, 0, 0.1),
+                          -0.5rem -0.5rem 1rem rgba(255, 255, 255, 0.5);
+            --clay-inner-shadow: inset 0.2rem 0.2rem 0.5rem rgba(0, 0, 0, 0.1),
+                                inset -0.2rem -0.2rem 0.5rem rgba(255, 255, 255, 0.5);
+        }
+        .clay {
+            background: #e0e5ec;
+            border-radius: 1rem;
+            box-shadow: var(--clay-shadow);
+            padding: 1rem;
+        }
+        .clay-button {
+            background: #e0e5ec;
+            border: none;
+            border-radius: 0.5rem;
+            box-shadow: var(--clay-shadow);
+            transition: all 0.2s ease;
+        }
+        .clay-button:active {
+            box-shadow: var(--clay-inner-shadow);
+        }
+        .toolbar-item {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0.5rem;
+            cursor: pointer;
+        }
+        #canvas-container {
+            background: white;
+            border-radius: 1rem;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="bg-[#e0e5ec] min-h-screen p-4">
+    <div class="max-w-[1400px] mx-auto">
+        <div class="clay mb-4 flex items-center justify-between">
+            <h1 class="text-2xl font-bold text-gray-700">Clay Design Editor</h1>
+            <div class="flex gap-2">
+                <button class="clay-button px-4 py-2" onclick="saveDesign()">
+                    <i class="bi bi-save"></i> Save
+                </button>
+                <button class="clay-button px-4 py-2" onclick="exportDesign()">
+                    <i class="bi bi-download"></i> Export
+                </button>
+            </div>
+        </div>
+
+        <div class="flex gap-4">
+            <div class="clay w-16">
+                <div class="flex flex-col">
+                    <div class="clay-button toolbar-item" onclick="setTool('select')">
+                        <i class="bi bi-cursor"></i>
+                    </div>
+                    <div class="clay-button toolbar-item" onclick="setTool('rectangle')">
+                        <i class="bi bi-square"></i>
+                    </div>
+                    <div class="clay-button toolbar-item" onclick="setTool('circle')">
+                        <i class="bi bi-circle"></i>
+                    </div>
+                    <div class="clay-button toolbar-item" onclick="setTool('text')">
+                        <i class="bi bi-type"></i>
+                    </div>
+                    <div class="clay-button toolbar-item" onclick="setTool('image')">
+                        <i class="bi bi-image"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div id="canvas-container" class="flex-grow h-[calc(100vh-8rem)]"></div>
+
+            <div class="clay w-64">
+                <h3 class="text-lg font-semibold mb-4">Properties</h3>
+                <div id="properties-panel" class="space-y-4">
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium">Fill Color</label>
+                        <input type="color" class="w-full h-10 clay-button" id="fillColor">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium">Stroke Color</label>
+                        <input type="color" class="w-full h-10 clay-button" id="strokeColor">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium">Stroke Width</label>
+                        <input type="range" min="0" max="20" class="w-full clay-button" id="strokeWidth">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let stage, layer, selectedShape;
+        let currentTool = 'select';
+
+        function initCanvas() {
+            stage = new Konva.Stage({
+                container: 'canvas-container',
+                width: document.getElementById('canvas-container').offsetWidth,
+                height: document.getElementById('canvas-container').offsetHeight,
+            });
+
+            layer = new Konva.Layer();
+            stage.add(layer);
+
+            stage.on('mousedown', handleMouseDown);
+            stage.on('mousemove', handleMouseMove);
+            stage.on('mouseup', handleMouseUp);
+        }
+
+        function setTool(tool) {
+            currentTool = tool;
+            document.querySelectorAll('.toolbar-item').forEach(item => {
+                item.style.backgroundColor = '#e0e5ec';
+            });
+            event.currentTarget.style.backgroundColor = '#d0d5dc';
+        }
+
+        let isDrawing = false;
+        let startPos;
+
+        function handleMouseDown(e) {
+            if (currentTool === 'select') return;
+            isDrawing = true;
+            const pos = stage.getPointerPosition();
+            startPos = pos;
+
+            switch(currentTool) {
+                case 'rectangle':
+                    selectedShape = new Konva.Rect({
+                        x: pos.x,
+                        y: pos.y,
+                        width: 0,
+                        height: 0,
+                        fill: document.getElementById('fillColor').value,
+                        stroke: document.getElementById('strokeColor').value,
+                        strokeWidth: parseInt(document.getElementById('strokeWidth').value),
+                        draggable: true,
+                    });
+                    break;
+                case 'circle':
+                    selectedShape = new Konva.Circle({
+                        x: pos.x,
+                        y: pos.y,
+                        radius: 0,
+                        fill: document.getElementById('fillColor').value,
+                        stroke: document.getElementById('strokeColor').value,
+                        strokeWidth: parseInt(document.getElementById('strokeWidth').value),
+                        draggable: true,
+                    });
+                    break;
+                case 'text':
+                    const text = prompt('Enter text:', 'Text');
+                    if (text) {
+                        selectedShape = new Konva.Text({
+                            x: pos.x,
+                            y: pos.y,
+                            text: text,
+                            fontSize: 20,
+                            fill: document.getElementById('fillColor').value,
+                            draggable: true,
+                        });
+                        layer.add(selectedShape);
+                        layer.draw();
+                    }
+                    break;
+            }
+
+            if (selectedShape && currentTool !== 'text') {
+                layer.add(selectedShape);
+            }
+        }
+
+        function handleMouseMove(e) {
+            if (!isDrawing) return;
+            const pos = stage.getPointerPosition();
+
+            switch(currentTool) {
+                case 'rectangle':
+                    selectedShape.width(pos.x - startPos.x);
+                    selectedShape.height(pos.y - startPos.y);
+                    break;
+                case 'circle':
+                    const dx = pos.x - startPos.x;
+                    const dy = pos.y - startPos.y;
+                    const radius = Math.sqrt(dx * dx + dy * dy);
+                    selectedShape.radius(radius);
+                    break;
+            }
+            layer.draw();
+        }
+
+        function handleMouseUp() {
+            isDrawing = false;
+        }
+
+        function saveDesign() {
+            const json = stage.toJSON();
+            localStorage.setItem('design', json);
+            alert('Design saved!');
+        }
+
+        function exportDesign() {
+            const dataURL = stage.toDataURL();
+            const link = document.createElement('a');
+            link.download = 'design.png';
+            link.href = dataURL;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Initialize the canvas when the page loads
+        window.addEventListener('load', initCanvas);
+        window.addEventListener('resize', () => {
+            stage.width(document.getElementById('canvas-container').offsetWidth);
+            stage.height(document.getElementById('canvas-container').offsetHeight);
+        });
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
